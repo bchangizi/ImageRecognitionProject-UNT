@@ -1,1 +1,8 @@
 # Multiple Object Recognition Project
+
+##Using CMake
+Cmake uses the current working directory to output the make files or IDE files so you'll probably want to 'mkdir' an output directory.
+To create build ready files simply invoke 'cmake <path-to-CMakeLists.txt> ', path can be relative.
+Once it does it's magic, you're ready to build by invoking 'Make' or Visual Studio sln.
+You can also tell it to invoke the compiler for you by invoking 'cmake --build <path-to-makefiles/idefiles>'
+Any errors will print on the console otherwise you'll have your binary in the same folder or on windows 'Debug' or 'Release' depending which you set(default is 'Debug')

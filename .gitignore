@@ -3,3 +3,8 @@
 *.swp
 *.gz
 *.bz2
+selector/CMakeCache.txt
+selector/ImageSelect
+selector/CMakefiles
+selector/Makefile
+selector/*.cmake

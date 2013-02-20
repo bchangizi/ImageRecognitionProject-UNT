@@ -5,6 +5,7 @@
 *.bz2
 selector/CMakeCache.txt
 selector/ImageSelect
-selector/CMakefiles
+selector/CMakeFiles
+selector/CMakeFiles/*
 selector/Makefile
 selector/*.cmake

@@ -24,32 +24,7 @@ using namespace cv;
 #include <fstream>
 using namespace std;
 
-#define ESCAPE 27
-
-/*
- * Keep track of when mouse is dragging on the named window
- */
-bool dragging = false;
-/*
- * Set to true when dragging stops
- */
-bool finished = false;
-/*
- * Set to false when the GUI needs to be closed
- */
-bool running = true;
-/*
- * When true, show the help menu.
- */
-bool help = false;
-/*
- * Contains coordinates for the selected image
- */
-Rect selection;
-/*
- * Called when the named window gets a mouse event
- */
-void mouse_callback(int event, int x, int y, int flags, void* param);
+#include "defines.h"
 
 /*
  * Entry point
@@ -65,7 +40,7 @@ int main(int argc, char *argv[]) {
 	 */
 	img = imread(filename, CV_LOAD_IMAGE_COLOR);
 	img_selection = img.clone();
-	backup = imread(filename, CV_LOAD_IMAGE_COLOR);
+	backup = img.clone();
 
 	namedWindow(filename, CV_WINDOW_AUTOSIZE);
 	setMouseCallback(filename, mouse_callback, (void*) &img);

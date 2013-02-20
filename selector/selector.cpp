@@ -50,16 +50,23 @@ int main(int argc, char *argv[]) {
 		 */
 		backup.copyTo(img);
 
-		if(use_edges) {
-			//not implemented yet	
-		}
-
+		/*
+		 * Reduce noise first
+		 */
 		if(reduce_noise) {
 			medianBlur(img, img, 3);
 		}
 
 		if(max_contrast) {
 			maximize_contrast(img);
+		}
+
+		/*
+		 * For best results, compute edges after
+		 * noise reduction and contrast maximization.
+		 */
+		if(use_edges) {
+			detect_edges(img);
 		}
 
 		/*
@@ -127,6 +134,13 @@ int main(int argc, char *argv[]) {
 				reduce_noise = !reduce_noise;
 				break;
 			}
+			/*
+			 * Press c to toggle contrast maximization
+			 */
+			case 'c': {
+				max_contrast = !max_contrast;
+				break;
+			}
 		}
 	}
 
@@ -176,6 +190,38 @@ void mouse_callback(int event, int x, int y, int flags, void* param) {
 	}
 }
 
-void maximize_contrast(Mat& img) {
+/*
+ * Maximize the contrast by equalizing 
+ * the histograms of BGR channels
+ */
+void maximize_contrast(Mat &img) {
+	Mat channels[3];
+	split(img, channels);
+	for(int k = 0; k < 3; k++)
+		equalizeHist(channels[k], channels[k]);
+	merge(channels, 3, img);
+}
 
+/*
+ * Show edges using Sobel edge detection
+ */
+void detect_edges(Mat &img) {
+	/*
+	 * Begin Sobel edge detection
+	 */
+	Mat gradientX, gradientY, absGradientX, absGradientY, gray;
+
+	/*
+	 * Copy the blurred image (easier edge detection) and convert to grayscale
+	 */
+	cvtColor(img, gray, CV_BGR2GRAY);
+
+	/*
+	 * OpenCV sobel edge detection, using X and Y gradients.
+	 */
+	Sobel(gray, gradientX, CV_16S, 1, 0, 3, 1, 0, BORDER_DEFAULT);
+	Sobel(gray, gradientY, CV_16S, 0, 1, 3, 1, 0, BORDER_DEFAULT);
+	convertScaleAbs(gradientX, absGradientX);
+	convertScaleAbs(gradientY, absGradientY);
+	addWeighted(absGradientX, 0.5, absGradientY, 0.8, 0, img);
 }

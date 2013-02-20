@@ -56,7 +56,12 @@ void mouse_callback(int event, int x, int y, int flags, void* param);
 /*
  * Break the image into its channels and equalize their histograms.
  */
-void maximize_contrast(Mat& img);
+void maximize_contrast(Mat &img);
+
+/*
+ * Show the Sobel edge map of the image
+ */
+void detect_edges(Mat &img);
 
 /*
  * Ridiculous hack to put text on newlines...

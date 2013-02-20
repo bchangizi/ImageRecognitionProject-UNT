@@ -32,14 +32,13 @@ using namespace std;
 int main(int argc, char *argv[]) {
 
 	const char* filename = "lenaN.tif";
-	Mat img, img_selection, backup;
+	Mat img, backup;
 
 	/*
 	 * Read the image 
 	 * Copy to a backup
 	 */
 	img = imread(filename, CV_LOAD_IMAGE_COLOR);
-	img_selection = img.clone();
 	backup = img.clone();
 
 	namedWindow(filename, CV_WINDOW_AUTOSIZE);
@@ -50,6 +49,31 @@ int main(int argc, char *argv[]) {
 		 * Reset the image so drawing a rectangle is animated
 		 */
 		backup.copyTo(img);
+
+		if(use_edges) {
+			//not implemented yet	
+		}
+
+		if(reduce_noise) {
+			medianBlur(img, img, 3);
+		}
+
+		if(max_contrast) {
+			maximize_contrast(img);
+		}
+
+		/*
+		 * Show help LAST or it will be affected by noise reduction/edge detection
+		 */
+		if(help) {
+			/*
+			 * Create newlines by drawing 30 pixels lower
+			 */
+			for(int k = 0; k < HELP_LENGTH; k++) {
+				putText(img, help_array[k], Point(10, 30 + (k * 30)), 
+					FONT_HERSHEY_COMPLEX_SMALL, 0.8, Scalar(0, 0, 255), 1, CV_AA);
+			}
+		}
 
 		if(dragging) {
 			/*
@@ -66,7 +90,7 @@ int main(int argc, char *argv[]) {
 			if(selection.width < 10 || selection.height < 10)
 				continue;
 		
-			Mat interest = img_selection(selection);
+			Mat interest = img(selection);
 			imshow("Region of Interest", interest);
 		}
 
@@ -86,7 +110,21 @@ int main(int argc, char *argv[]) {
 			 * Press h for help
 			 */
 			case 'h': {
-				//show help
+				help = !help;
+				break;
+			}
+			/*
+			 * Press e to toggle edge map
+			 */
+			case 'e': {
+				use_edges = !use_edges;
+				break;
+		  	}
+			/*
+			 * Press r to toggle noise reduction
+			 */
+			case 'r': {
+				reduce_noise = !reduce_noise;
 				break;
 			}
 		}
@@ -136,4 +174,8 @@ void mouse_callback(int event, int x, int y, int flags, void* param) {
 			break;
 		}
 	}
+}
+
+void maximize_contrast(Mat& img) {
+
 }

@@ -26,9 +26,6 @@ using namespace std;
 
 #include "defines.h"
 
-/*
- * Entry point
- */
 int main(int argc, char *argv[]) {
 
 	const char* filename = "lenaN.tif";
@@ -41,6 +38,9 @@ int main(int argc, char *argv[]) {
 	img = imread(filename, CV_LOAD_IMAGE_COLOR);
 	backup = img.clone();
 
+	/*
+	 * Create the window and add a mouse event handler
+	 */
 	namedWindow(filename, CV_WINDOW_AUTOSIZE);
 	setMouseCallback(filename, mouse_callback, (void*) &img);
 
@@ -153,8 +153,10 @@ void mouse_callback(int event, int x, int y, int flags, void* param) {
 	switch(event) {
 		case CV_EVENT_MOUSEMOVE: {
 			finished = false;
-			// while dragging, the width and height of the 
-			// selection box will change
+			/*
+			 * while dragging, the width and height of the 
+			 * selection box will change
+			 */
 			if(dragging) {
 				selection.width = x - selection.x;
 				selection.height = y - selection.y;
@@ -162,20 +164,26 @@ void mouse_callback(int event, int x, int y, int flags, void* param) {
 			break;
 		}
 		case CV_EVENT_LBUTTONDOWN: {
-			// left mouse button means start coordinates are selected
+			/* 
+			 * left mouse button means start coordinates are selected
+			 */
 			dragging = true;
 			selection = cvRect(x, y, 0, 0);
 			break;
 		}
 		case CV_EVENT_LBUTTONUP: {
-			// left button up means dragging is done, 
-			// draw the selection
+			/*
+			 * left button up means dragging is done, 
+			 * draw the selection
+			 */
 			dragging = false;
 			finished = true;
 
-			// if the user dragged up or to the left
-			// we cant have a negative box, so shift
-			// x or y accordingly
+			/*
+			 * if the user dragged up or to the left
+			 * we cant have a negative box, so shift
+			 * x or y accordingly
+			 */
 			if(selection.width < 0) {
 				selection.x += selection.width;
 				selection.width *= -1;

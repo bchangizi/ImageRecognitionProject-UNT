@@ -1,8 +1,6 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-#define ESCAPE 27
-
 /*
  * Keep track of when mouse is dragging on the named window.
  * dragging will be true after left button is pressed,

@@ -57,6 +57,9 @@ int main(int argc, char *argv[]) {
 			medianBlur(img, img, 3);
 		}
 
+		/*
+		 * Equalize the histograms of each channel of the image
+		 */
 		if(max_contrast) {
 			maximize_contrast(img);
 		}
@@ -66,7 +69,8 @@ int main(int argc, char *argv[]) {
 		 * noise reduction and contrast maximization.
 		 */
 		if(use_edges) {
-			detect_edges(img);
+			cvtColor(img, img, CV_BGR2GRAY);
+			Canny(img, img, 80, 320, 3);
 		}
 
 		/*
@@ -74,11 +78,16 @@ int main(int argc, char *argv[]) {
 		 */
 		if(help) {
 			/*
+			 * Edge map uses grayscale. 
+			 * Set the font color to white so the help menu is visible.
+			 */
+			Scalar color = (use_edges) ? Scalar(255, 255, 2525) : Scalar(0, 0, 255);
+			/*
 			 * Create newlines by drawing 30 pixels lower
 			 */
 			for(int k = 0; k < HELP_LENGTH; k++) {
 				putText(img, help_array[k], Point(10, 30 + (k * 30)), 
-					FONT_HERSHEY_COMPLEX_SMALL, 0.8, Scalar(0, 0, 255), 1, CV_AA);
+					FONT_HERSHEY_COMPLEX_SMALL, 0.8, color, 1, CV_AA);
 			}
 		}
 
@@ -86,7 +95,8 @@ int main(int argc, char *argv[]) {
 			/*
 			 * Draw the current mouse selection
 			 */
-			rectangle(img, selection, Scalar(0, 255, 0), 1, 8, 0);
+			Scalar rect_color = (use_edges) ? Scalar(255, 255, 2525) : Scalar(0, 255, 0);
+			rectangle(img, selection, rect_color, 1, 8, 0);
 		}
 		else if(finished) {
 			finished = false;
@@ -108,11 +118,15 @@ int main(int argc, char *argv[]) {
 		 * wait 10 milliseconds for keyboard input
 		 */
 		int keyCode = cvWaitKey(10);
+
 		switch(keyCode) {
-			case ESCAPE: {
+			/*
+			 * Press q to quit
+			 */
+			case 'q': {
 				running = false;
 				break;
-			 }				 
+			}
 			/*
 			 * Press h for help
 			 */
@@ -208,28 +222,4 @@ void maximize_contrast(Mat &img) {
 	for(int k = 0; k < 3; k++)
 		equalizeHist(channels[k], channels[k]);
 	merge(channels, 3, img);
-}
-
-/*
- * Show edges using Sobel edge detection
- */
-void detect_edges(Mat &img) {
-	/*
-	 * Begin Sobel edge detection
-	 */
-	Mat gradientX, gradientY, absGradientX, absGradientY, gray;
-
-	/*
-	 * Copy the blurred image (easier edge detection) and convert to grayscale
-	 */
-	cvtColor(img, gray, CV_BGR2GRAY);
-
-	/*
-	 * OpenCV sobel edge detection, using X and Y gradients.
-	 */
-	Sobel(gray, gradientX, CV_16S, 1, 0, 3, 1, 0, BORDER_DEFAULT);
-	Sobel(gray, gradientY, CV_16S, 0, 1, 3, 1, 0, BORDER_DEFAULT);
-	convertScaleAbs(gradientX, absGradientX);
-	convertScaleAbs(gradientY, absGradientY);
-	addWeighted(absGradientX, 0.5, absGradientY, 0.8, 0, img);
 }

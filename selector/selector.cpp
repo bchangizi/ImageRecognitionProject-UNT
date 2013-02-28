@@ -15,9 +15,10 @@
  * =====================================================================================
  */
 
-#include <opencv/cv.h>
-#include <opencv/cxcore.h>
-#include <opencv/highgui.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/nonfree/features2d.hpp>
 using namespace cv;
 
 #include <iostream>
@@ -28,7 +29,7 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
 
-	const char* filename = "lenaN.tif";
+	const char* filename = "testImages/shapes.png";
 	Mat img, backup;
 
 	/*
@@ -60,9 +61,6 @@ int main(int argc, char *argv[]) {
 		 */
 		backup.copyTo(img);
 
-	// if(useEdges) {
-		// }
-
 		/*
 		 * Show help LAST or it will be affected by noise reduction/edge detection
 		 */
@@ -83,14 +81,18 @@ int main(int argc, char *argv[]) {
 
 		if(dragging) {
 			/*
-			 * Draw the current mouse selection
+			 * Draw the current mouse selection, using the inverse of the current color
+			 * for easy visualization.
 			 */
-			Scalar rect_color = (useEdges) ? Scalar(255, 255, 2525) : Scalar(0, 255, 0);
-			rectangle(img, selection, rect_color, 1, 8, 0);
+			// causes segfaults for some reason... 
+			// Vec3b dragStart = img.at<Vec3b>(selection.x, selection.y);
+			// cout << "set color" << endl;
+			// Scalar currentColor(255 - dragStart[0], 255 - dragStart[1], 255 - dragStart[2]);
+			// cout << "create rectangle" << endl;
+			rectangle(img, selection, Scalar(0, 0, 0), 1, 8, 0);
 		}
 		else if(finished) {
 			finished = false;
-			
 			/*
 			 * First verify that the selection is large enough or the program will crash
 			 */
@@ -103,7 +105,8 @@ int main(int argc, char *argv[]) {
 			// Try to find subimage in backup, and store the result in result
 			findSelection(backup, subimage, result);
 
-			if(result.width > 20 && result.height && 20) {
+			if((result.width > 20 && result.height > 20) && 
+			   (result.width != img.cols && result.height != img.rows)) {
 				namedWindow("Region of Interest", CV_WINDOW_AUTOSIZE);
 				imshow("Region of Interest", backup(result));
 			}
@@ -216,12 +219,12 @@ void mouseCallback(int event, int x, int y, int flags, void* param) {
  * Maximize the contrast by equalizing 
  * the histograms of BGR channels
  */
-void maximizeContrast(Mat &img) {
+void maximizeContrast(Mat &input, Mat &output) {
 	Mat channels[3];
-	split(img, channels);
+	split(input, channels);
 	for(int k = 0; k < 3; k++)
 		equalizeHist(channels[k], channels[k]);
-	merge(channels, 3, img);
+	merge(channels, 3, output);
 }
 
 /*
@@ -232,51 +235,63 @@ void maximizeContrast(Mat &img) {
  * noise reduction and contrast maximization.
  */
 void findSelection(Mat &img, Mat &subimage, Rect &result) {
-	Mat canvas;
-	img.copyTo(canvas);
-
-	maximizeContrast(img);
-	medianBlur(img, img, 3);
+	/*
+	 * scene - the main image (video feed)
+	 * object - the selection (subimage of the scene)
+	 * canvas - visualization of the matching points
+	 */
+	Mat scene, object, canvas;
 
 	/*
-	 * Scene is the image
-	 * Object is the selection 
+	 * Noise reduction and histogram equalization
 	 */
-	Mat scene, object;
-	cvtColor(img, scene, CV_BGR2GRAY);
-	cvtColor(subimage, object, CV_BGR2GRAY);
-	Canny(scene, scene, 120, 480, 3);
-	Canny(object, object, 120, 480, 3);
+	medianBlur(scene, scene, 3);
+	medianBlur(object, object, 3);
+	maximizeContrast(img, scene);
+	maximizeContrast(subimage, object);
 
+	// Mat scene, object;
+	// cvtColor(img, scene, CV_BGR2GRAY);
+	// cvtColor(subimage, object, CV_BGR2GRAY);
+	// Canny(scene, scene, 120, 480, 3);
+	// Canny(object, object, 120, 480, 3);
+
+	SurfFeatureDetector surf(400);
+	vector<KeyPoint> scenePoints, objectPoints;
+	surf.detect(scene, scenePoints);
+	surf.detect(object, objectPoints);
+
+	// Mat imageKeypoints;
+	// drawKeypoints(subimage, objectPoints, imageKeypoints, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+
+	// namedWindow("Keypoints", CV_WINDOW_AUTOSIZE);
+	// imshow("Keypoints", imageKeypoints);
+	//
 	/*
 	 * Calculate key points using SURF
 	 */
-	SurfFeatureDetector surf(400);
-	vector<KeyPoint> scene_points, object_points;
-	surf.detect(scene, scene_points);
-	surf.detect(object, object_points);
 
-	/*
-	 * Calculate descriptors
-	 */
+	// /*
+	//  * Calculate descriptors
+	//  */
 	SurfDescriptorExtractor extractor;
-	Mat scene_descriptor, object_descriptor;
-	extractor.compute(scene, scene_points, scene_descriptor);
-	extractor.compute(object, object_points, object_descriptor);
+	Mat sceneDesc, objectDesc;
+	extractor.compute(scene, scenePoints, sceneDesc);
+	extractor.compute(object, objectPoints, objectDesc);
 
-	scene_descriptor.convertTo(scene_descriptor, CV_32F);
-	object_descriptor.convertTo(object_descriptor, CV_32F);
+	sceneDesc.convertTo(sceneDesc, CV_32F);
+	objectDesc.convertTo(objectDesc, CV_32F);
 
 	/*
 	 * Match the descriptor vectors using FLANN
 	 */
 	FlannBasedMatcher matcher;
 	vector<DMatch> matches;
-	matcher.match(scene_descriptor, object_descriptor, matches);
+	matcher.match(sceneDesc, objectDesc, matches);
 
 	double max_dist = 0, min_dist = 50;
 
-	for(int i = 0; i < scene_descriptor.rows; i++) {
+	for(int i = 0; i < sceneDesc.rows; i++) {
 		double dist = matches[i].distance;
 		if(dist < min_dist)
 			min_dist = dist;
@@ -288,8 +303,8 @@ void findSelection(Mat &img, Mat &subimage, Rect &result) {
 	 * Find the matches that are less than 5 * min_dist apart
 	 */
 	vector<DMatch> good;
-	for(int i = 0; i < scene_descriptor.rows; i++) {
-		if(matches[i].distance < 2 * min_dist) {
+	for(int i = 0; i < sceneDesc.rows; i++) {
+		if(matches[i].distance < 5 * min_dist) {
 			good.push_back(matches[i]);
 		}
 	}
@@ -302,8 +317,8 @@ void findSelection(Mat &img, Mat &subimage, Rect &result) {
 	float min_x = scene.cols, min_y = scene.rows;
 
 	for(int i = 0; i < good.size(); i++) {
-		curr_x = scene_points[good[i].queryIdx].pt.x;
-		curr_y = scene_points[good[i].queryIdx].pt.y;
+		curr_x = scenePoints[good[i].queryIdx].pt.x;
+		curr_y = scenePoints[good[i].queryIdx].pt.y;
 		if(curr_x * curr_y != 0) {
 			max_x = (curr_x > max_x) ? curr_x : max_x;
 			max_y = (curr_y > max_y) ? curr_y : max_y;
@@ -325,10 +340,10 @@ void findSelection(Mat &img, Mat &subimage, Rect &result) {
 
 	Mat img_matches;
 
-	// for(int k = 0; k < good.size(); k++) {
-	// 	circle(canvas, scene_points[good[k].queryIdx].pt, 10, Scalar::all(255), 1, 8, 0);
-	// }
+	for(int k = 0; k < good.size(); k++) {
+		circle(canvas, scenePoints[good[k].queryIdx].pt, 10, Scalar::all(255), 1, 8, 0);
+	}
 
-	// namedWindow("Matches", CV_WINDOW_AUTOSIZE);
-	// imshow("Matches", canvas);
+	namedWindow("Matches", CV_WINDOW_AUTOSIZE);
+	imshow("Matches", canvas);
 }

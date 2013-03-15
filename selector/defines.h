@@ -66,7 +66,7 @@ void findSelection(Mat& source, Mat& subimage, Rect& result);
  * Ridiculous hack to put text on newlines...
  * Each array index is effectively a new line.
  */
-const char *helpArray[] = {"ESC -- quit.",
+const char *helpArray[] = {"q   -- quit.",
 							"h   -- toggle this menu",
 							"e   -- toggle edge map",
 							"r   -- reduce noise (median blur)",

@@ -29,37 +29,34 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
 
-	const char* filename = "testImages/shapes.png";
 	Mat img, backup;
-
-	/*
-	 * Read the image 
-	 * Copy to a backup
-	 */
-	img = imread(filename, CV_LOAD_IMAGE_COLOR);
-	backup = img.clone();
+	
+	VideoCapture cam(0);
+	if(!cam.isOpened()) {
+		cout << "Failed to open default camera." << endl;
+		return 1;
+	}
 
 	/*
 	 * Create the window and add a mouse event handler
 	 */
-	namedWindow(filename, CV_WINDOW_AUTOSIZE);
-	setMouseCallback(filename, mouseCallback, (void*) &img);
+	namedWindow("Stream", CV_WINDOW_AUTOSIZE);
+	setMouseCallback("Stream", mouseCallback, (void*) &img);
 
 	reduceNoise = maxContrast = useEdges = true;
 
 	/*
-	 * Search is the matrix that we search for in the current image
+	 * subimage is the matrix that we search for in the current image
+	 * subimageDim is the width and height that the selection will be resized to
 	 */
-	Mat search;
+	Mat subimage;
+	int subimageDim = 80;
 
 	/*
 	 * Simulate video stream
 	 */
 	while(running) {
-		/*
-		 * Reset the image so drawing a rectangle is animated
-		 */
-		backup.copyTo(img);
+		cam >> img;
 
 		/*
 		 * Show help LAST or it will be affected by noise reduction/edge detection
@@ -81,15 +78,10 @@ int main(int argc, char *argv[]) {
 
 		if(dragging) {
 			/*
-			 * Draw the current mouse selection, using the inverse of the current color
-			 * for easy visualization.
+			 * Draw the rectangle
 			 */
-			// causes segfaults for some reason... 
-			// Vec3b dragStart = img.at<Vec3b>(selection.x, selection.y);
-			// cout << "set color" << endl;
-			// Scalar currentColor(255 - dragStart[0], 255 - dragStart[1], 255 - dragStart[2]);
-			// cout << "create rectangle" << endl;
-			rectangle(img, selection, Scalar(0, 0, 0), 1, 8, 0);
+			Vec3b dragStart = img.at<Vec3b>(selection.x, selection.y);
+			rectangle(img, selection, Scalar(0, 255, 0), 1, 8, 0);
 		}
 		else if(finished) {
 			finished = false;
@@ -99,21 +91,30 @@ int main(int argc, char *argv[]) {
 			if(selection.width < 10 || selection.height < 10)
 				continue;
 
-			Mat subimage = img(selection);
-			Rect result;
-
+			/*
+			 * Copy the subimage out,
+			 * resize it to 80x80,
+			 * show it in the bottom right of the video capture.
+			 */
+			subimage = img(selection);
+			resize(subimage, subimage, Size(subimageDim, subimageDim));
+			
 			// Try to find subimage in backup, and store the result in result
-			findSelection(backup, subimage, result);
+			// findSelection(backup, subimage, result);
 
-			if((result.width > 20 && result.height > 20) && 
-			   (result.width != img.cols && result.height != img.rows)) {
-				namedWindow("Region of Interest", CV_WINDOW_AUTOSIZE);
-				imshow("Region of Interest", backup(result));
-			}
+			// if((result.width > 20 && result.height > 20) && 
+			//    (result.width != img.cols && result.height != img.rows)) {
+			// 	namedWindow("Region of Interest", CV_WINDOW_AUTOSIZE);
+			// 	imshow("Region of Interest", backup(result));
+			// }
 		}
 
 		// show the image in a window
-		imshow(filename, img);
+		if(subimage.rows > 10 && subimage.cols > 10) {
+			Rect result(Point(img.cols - subimageDim, img.rows - subimageDim), subimage.size());
+			subimage.copyTo(img(result));
+		}
+		imshow("Stream", img);
 
 		/* 
 		 * wait 10 milliseconds for keyboard input
@@ -256,10 +257,14 @@ void findSelection(Mat &img, Mat &subimage, Rect &result) {
 	// Canny(scene, scene, 120, 480, 3);
 	// Canny(object, object, 120, 480, 3);
 
-	SurfFeatureDetector surf(400);
-	vector<KeyPoint> scenePoints, objectPoints;
-	surf.detect(scene, scenePoints);
-	surf.detect(object, objectPoints);
+	/*
+	 * figure out why this causes undefined vtable reference
+	 */
+
+	// SurfFeatureDetector surf(400);
+	// vector<KeyPoint> scenePoints, objectPoints;
+	// surf.detect(scene, scenePoints);
+	// surf.detect(object, objectPoints);
 
 	// Mat imageKeypoints;
 	// drawKeypoints(subimage, objectPoints, imageKeypoints, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
@@ -274,76 +279,76 @@ void findSelection(Mat &img, Mat &subimage, Rect &result) {
 	// /*
 	//  * Calculate descriptors
 	//  */
-	SurfDescriptorExtractor extractor;
-	Mat sceneDesc, objectDesc;
-	extractor.compute(scene, scenePoints, sceneDesc);
-	extractor.compute(object, objectPoints, objectDesc);
+	// SurfDescriptorExtractor extractor;
+	// Mat sceneDesc, objectDesc;
+	// extractor.compute(scene, scenePoints, sceneDesc);
+	// extractor.compute(object, objectPoints, objectDesc);
 
-	sceneDesc.convertTo(sceneDesc, CV_32F);
-	objectDesc.convertTo(objectDesc, CV_32F);
+	// sceneDesc.convertTo(sceneDesc, CV_32F);
+	// objectDesc.convertTo(objectDesc, CV_32F);
 
 	/*
 	 * Match the descriptor vectors using FLANN
 	 */
-	FlannBasedMatcher matcher;
-	vector<DMatch> matches;
-	matcher.match(sceneDesc, objectDesc, matches);
+	// FlannBasedMatcher matcher;
+	// vector<DMatch> matches;
+	// matcher.match(sceneDesc, objectDesc, matches);
 
-	double max_dist = 0, min_dist = 50;
+	// double max_dist = 0, min_dist = 50;
 
-	for(int i = 0; i < sceneDesc.rows; i++) {
-		double dist = matches[i].distance;
-		if(dist < min_dist)
-			min_dist = dist;
-		if(dist> max_dist)
-			max_dist = dist;
-	}
+	// for(int i = 0; i < sceneDesc.rows; i++) {
+	// 	double dist = matches[i].distance;
+	// 	if(dist < min_dist)
+	// 		min_dist = dist;
+	// 	if(dist> max_dist)
+	// 		max_dist = dist;
+	// }
 
 	/*
 	 * Find the matches that are less than 5 * min_dist apart
 	 */
-	vector<DMatch> good;
-	for(int i = 0; i < sceneDesc.rows; i++) {
-		if(matches[i].distance < 5 * min_dist) {
-			good.push_back(matches[i]);
-		}
-	}
+	// vector<DMatch> good;
+	// for(int i = 0; i < sceneDesc.rows; i++) {
+	// 	if(matches[i].distance < 5 * min_dist) {
+	// 		good.push_back(matches[i]);
+	// 	}
+	// }
 
 	/*
 	 * Put the good matches into the scene and object vectors
 	 */
-	float curr_x, curr_y;
-	float max_x = 0, max_y = 0;
-	float min_x = scene.cols, min_y = scene.rows;
+	// float curr_x, curr_y;
+	// float max_x = 0, max_y = 0;
+	// float min_x = scene.cols, min_y = scene.rows;
 
-	for(int i = 0; i < good.size(); i++) {
-		curr_x = scenePoints[good[i].queryIdx].pt.x;
-		curr_y = scenePoints[good[i].queryIdx].pt.y;
-		if(curr_x * curr_y != 0) {
-			max_x = (curr_x > max_x) ? curr_x : max_x;
-			max_y = (curr_y > max_y) ? curr_y : max_y;
+	// for(int i = 0; i < good.size(); i++) {
+	// 	curr_x = scenePoints[good[i].queryIdx].pt.x;
+	// 	curr_y = scenePoints[good[i].queryIdx].pt.y;
+	// 	if(curr_x * curr_y != 0) {
+	// 		max_x = (curr_x > max_x) ? curr_x : max_x;
+	// 		max_y = (curr_y > max_y) ? curr_y : max_y;
 
-			min_x = (curr_x < min_x) ? curr_x : min_x;
-			min_y = (curr_y < min_y) ? curr_y : min_y;
-		}
-	}
+	// 		min_x = (curr_x < min_x) ? curr_x : min_x;
+	// 		min_y = (curr_y < min_y) ? curr_y : min_y;
+	// 	}
+	// }
 
-	cout << "Possible coordinates of match: [" << min_x << "," << min_y << "] to ["
-		 << max_x << "," << max_y << "]" << endl;
+	// cout << "Possible coordinates of match: [" << min_x << "," << min_y << "] to ["
+	// 	 << max_x << "," << max_y << "]" << endl;
 
-	result.x = min_x;
-	result.y = min_y;
-	result.height = max_y - min_y;
-	result.width= max_x - min_x;
+	// result.x = min_x;
+	// result.y = min_y;
+	// result.height = max_y - min_y;
+	// result.width= max_x - min_x;
 
-	cout << "Image width: " << min_x + max_y << "\nImage height: " << min_y + max_y << endl;
+	// cout << "Image width: " << min_x + max_y << "\nImage height: " << min_y + max_y << endl;
 
-	Mat img_matches;
+	// Mat img_matches;
 
-	for(int k = 0; k < good.size(); k++) {
-		circle(canvas, scenePoints[good[k].queryIdx].pt, 10, Scalar::all(255), 1, 8, 0);
-	}
+	// for(int k = 0; k < good.size(); k++) {
+	// 	circle(canvas, scenePoints[good[k].queryIdx].pt, 10, Scalar::all(255), 1, 8, 0);
+	// }
 
-	namedWindow("Matches", CV_WINDOW_AUTOSIZE);
-	imshow("Matches", canvas);
+	// namedWindow("Matches", CV_WINDOW_AUTOSIZE);
+	// imshow("Matches", canvas);
 }

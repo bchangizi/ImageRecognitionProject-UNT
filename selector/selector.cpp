@@ -90,8 +90,9 @@ int main(int argc, char *argv[]) {
 			/*
 			 * Draw the rectangle
 			 */
+			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);
 			Vec3b dragStart = img.at<Vec3b>(selection.x, selection.y);
-			rectangle(img, selection, Scalar(0, 255, 0), 1, 8, 0);
+			rectangle(img, selection, color, 1, 8, 0);
 		}
 		else if(finished) {
 			finished = false;
@@ -118,15 +119,16 @@ int main(int argc, char *argv[]) {
 			 */
 			subimage = img(selection);
 			resize(subimage, subimage, Size(subimageDim, subimageDim));
-			
+		
+			Rect result;
 			// Try to find subimage in backup, and store the result in result
-			// findSelection(backup, subimage, result);
+			findSelection(backup, subimage, result);
 
-			// if((result.width > 20 && result.height > 20) && 
-			//    (result.width != img.cols && result.height != img.rows)) {
-			// 	namedWindow("Region of Interest", CV_WINDOW_AUTOSIZE);
-			// 	imshow("Region of Interest", backup(result));
-			// }
+			if((result.width > 20 && result.height > 20) && 
+			   (result.width != img.cols && result.height != img.rows)) {
+				namedWindow("Region of Interest", CV_WINDOW_AUTOSIZE);
+				imshow("Region of Interest", backup(result));
+			}
 		}
 
 		// show the image in a window
@@ -272,25 +274,25 @@ void findSelection(Mat &img, Mat &subimage, Rect &result) {
 	maximizeContrast(subimage, object);
 
 	// Mat scene, object;
-	// cvtColor(img, scene, CV_BGR2GRAY);
-	// cvtColor(subimage, object, CV_BGR2GRAY);
-	// Canny(scene, scene, 120, 480, 3);
-	// Canny(object, object, 120, 480, 3);
+	cvtColor(img, scene, CV_BGR2GRAY);
+	cvtColor(subimage, object, CV_BGR2GRAY);
+	Canny(scene, scene, 120, 480, 3);
+	Canny(object, object, 120, 480, 3);
 
 	/*
 	 * figure out why this causes undefined vtable reference
 	 */
 
-	// SurfFeatureDetector surf(400);
-	// vector<KeyPoint> scenePoints, objectPoints;
-	// surf.detect(scene, scenePoints);
-	// surf.detect(object, objectPoints);
+	SurfFeatureDetector surf(400);
+	vector<KeyPoint> scenePoints, objectPoints;
+	surf.detect(scene, scenePoints);
+	surf.detect(object, objectPoints);
 
-	// Mat imageKeypoints;
-	// drawKeypoints(subimage, objectPoints, imageKeypoints, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+	Mat imageKeypoints;
+	drawKeypoints(subimage, objectPoints, imageKeypoints, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
 
-	// namedWindow("Keypoints", CV_WINDOW_AUTOSIZE);
-	// imshow("Keypoints", imageKeypoints);
+	namedWindow("Keypoints", CV_WINDOW_AUTOSIZE);
+	imshow("Keypoints", imageKeypoints);
 	//
 	/*
 	 * Calculate key points using SURF
@@ -299,13 +301,13 @@ void findSelection(Mat &img, Mat &subimage, Rect &result) {
 	// /*
 	//  * Calculate descriptors
 	//  */
-	// SurfDescriptorExtractor extractor;
-	// Mat sceneDesc, objectDesc;
-	// extractor.compute(scene, scenePoints, sceneDesc);
-	// extractor.compute(object, objectPoints, objectDesc);
+	SurfDescriptorExtractor extractor;
+	Mat sceneDesc, objectDesc;
+	extractor.compute(scene, scenePoints, sceneDesc);
+	extractor.compute(object, objectPoints, objectDesc);
 
-	// sceneDesc.convertTo(sceneDesc, CV_32F);
-	// objectDesc.convertTo(objectDesc, CV_32F);
+	sceneDesc.convertTo(sceneDesc, CV_32F);
+	objectDesc.convertTo(objectDesc, CV_32F);
 
 	/*
 	 * Match the descriptor vectors using FLANN

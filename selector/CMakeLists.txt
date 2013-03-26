@@ -12,7 +12,7 @@ IF(WIN32)
 ENDIF(WIN32)
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
-	SET(external_libs opencv_core opencv_imgproc opencv_highgui opencv_ml opencv_video opencv_features2d opencv_calib3d opencv_objdetect opencv_contrib opencv_legacy opencv_flann)
+	SET(external_libs opencv_core opencv_imgproc opencv_highgui opencv_ml opencv_video opencv_features2d opencv_nonfree opencv_calib3d opencv_objdetect opencv_contrib opencv_legacy opencv_flann)
 	set(CMAKE_BUILD_TYPE Debug)
 ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 

@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		if(useEdges) {
-			Canny(img, img, 120, 480, 3);
+			Canny(img, img, 100, 400);
 		}
 
 		/*

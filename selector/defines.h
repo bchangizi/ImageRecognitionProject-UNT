@@ -54,7 +54,7 @@ void mouseCallback(int event, int x, int y, int flags, void* param);
 /*
  * Break the image into its channels and equalize their histograms.
  */
-void maximizeContrast(Mat &img);
+void maximizeContrast(Mat &input, Mat &output);
 
 /*
  * Given an image and a subimage, find the subimage

@@ -43,8 +43,6 @@ int main(int argc, char *argv[]) {
 	namedWindow("Stream", CV_WINDOW_AUTOSIZE);
 	setMouseCallback("Stream", mouseCallback, (void*) &img);
 
-	reduceNoise = maxContrast = useEdges = true;
-
 	/*
 	 * subimage is the matrix that we search for in the current image
 	 * subimageDim is the width and height that the selection will be resized to
@@ -57,6 +55,18 @@ int main(int argc, char *argv[]) {
 	 */
 	while(running) {
 		cam >> img;
+
+		if(reduceNoise) {
+			medianBlur(img, img, 3);
+		}
+
+		if(maxContrast) {
+			maximizeContrast(img, img);
+		}
+
+		if(useEdges) {
+			Canny(img, img, 120, 480, 3);
+		}
 
 		/*
 		 * Show help LAST or it will be affected by noise reduction/edge detection

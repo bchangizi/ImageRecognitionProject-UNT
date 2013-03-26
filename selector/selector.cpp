@@ -101,6 +101,16 @@ int main(int argc, char *argv[]) {
 			if(selection.width < 10 || selection.height < 10)
 				continue;
 
+			selection.x = (selection.x < 0) ? 0 : selection.x;
+			selection.y = (selection.y < 0) ? 0 : selection.y;
+
+			if(selection.x + selection.width > img.cols) {
+				selection.width = img.cols - selection.x - 1;
+			}
+			if(selection.y + selection.height > img.rows) {
+				selection.height = img.rows - selection.y - 1;
+			}
+
 			/*
 			 * Copy the subimage out,
 			 * resize it to 80x80,

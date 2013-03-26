@@ -269,16 +269,16 @@ void findSelection(Mat &img, Mat &subimage, Rect &result) {
 	/*
 	 * Noise reduction and histogram equalization
 	 */
-	medianBlur(scene, scene, 3);
-	medianBlur(object, object, 3);
-	maximizeContrast(img, scene);
-	maximizeContrast(subimage, object);
+	cout << "blur and contrast" << endl;
+	// medianBlur(scene, scene, 3);
+	// medianBlur(object, object, 3);
+	// maximizeContrast(img, scene);
+	// maximizeContrast(subimage, object);
 
 	// Mat scene, object;
-	cvtColor(img, scene, CV_BGR2GRAY);
-	cvtColor(subimage, object, CV_BGR2GRAY);
-	Canny(scene, scene, 120, 480, 3);
-	Canny(object, object, 120, 480, 3);
+	cout << "convert to gray" << endl;
+	// cvtColor(img, scene, CV_BGR2GRAY);
+	// cvtColor(subimage, object, CV_BGR2GRAY);
 
 	/*
 	 * figure out why this causes undefined vtable reference
@@ -292,16 +292,15 @@ void findSelection(Mat &img, Mat &subimage, Rect &result) {
 	Mat imageKeypoints;
 	drawKeypoints(subimage, objectPoints, imageKeypoints, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
 
-	namedWindow("Keypoints", CV_WINDOW_AUTOSIZE);
-	imshow("Keypoints", imageKeypoints);
-	//
+	// namedWindow("Keypoints", CV_WINDOW_AUTOSIZE);
+	// imshow("Keypoints", imageKeypoints);
 	/*
 	 * Calculate key points using SURF
 	 */
 
-	// /*
-	//  * Calculate descriptors
-	//  */
+	/*
+	 * Calculate descriptors
+	 */
 	SurfDescriptorExtractor extractor;
 	Mat sceneDesc, objectDesc;
 	extractor.compute(scene, scenePoints, sceneDesc);
@@ -313,64 +312,64 @@ void findSelection(Mat &img, Mat &subimage, Rect &result) {
 	/*
 	 * Match the descriptor vectors using FLANN
 	 */
-	// FlannBasedMatcher matcher;
-	// vector<DMatch> matches;
-	// matcher.match(sceneDesc, objectDesc, matches);
+	FlannBasedMatcher matcher;
+	vector<DMatch> matches;
+	matcher.match(sceneDesc, objectDesc, matches);
 
-	// double max_dist = 0, min_dist = 50;
+	double max_dist = 0, min_dist = 50;
 
-	// for(int i = 0; i < sceneDesc.rows; i++) {
-	// 	double dist = matches[i].distance;
-	// 	if(dist < min_dist)
-	// 		min_dist = dist;
-	// 	if(dist> max_dist)
-	// 		max_dist = dist;
-	// }
+	for(int i = 0; i < sceneDesc.rows; i++) {
+		double dist = matches[i].distance;
+		if(dist < min_dist)
+			min_dist = dist;
+		if(dist> max_dist)
+			max_dist = dist;
+	}
 
 	/*
 	 * Find the matches that are less than 5 * min_dist apart
 	 */
-	// vector<DMatch> good;
-	// for(int i = 0; i < sceneDesc.rows; i++) {
-	// 	if(matches[i].distance < 5 * min_dist) {
-	// 		good.push_back(matches[i]);
-	// 	}
-	// }
+	vector<DMatch> good;
+	for(int i = 0; i < sceneDesc.rows; i++) {
+		if(matches[i].distance < 5 * min_dist) {
+			good.push_back(matches[i]);
+		}
+	}
 
 	/*
 	 * Put the good matches into the scene and object vectors
 	 */
-	// float curr_x, curr_y;
-	// float max_x = 0, max_y = 0;
-	// float min_x = scene.cols, min_y = scene.rows;
+	float curr_x, curr_y;
+	float max_x = 0, max_y = 0;
+	float min_x = scene.cols, min_y = scene.rows;
 
-	// for(int i = 0; i < good.size(); i++) {
-	// 	curr_x = scenePoints[good[i].queryIdx].pt.x;
-	// 	curr_y = scenePoints[good[i].queryIdx].pt.y;
-	// 	if(curr_x * curr_y != 0) {
-	// 		max_x = (curr_x > max_x) ? curr_x : max_x;
-	// 		max_y = (curr_y > max_y) ? curr_y : max_y;
+	for(int i = 0; i < good.size(); i++) {
+		curr_x = scenePoints[good[i].queryIdx].pt.x;
+		curr_y = scenePoints[good[i].queryIdx].pt.y;
+		if(curr_x * curr_y != 0) {
+			max_x = (curr_x > max_x) ? curr_x : max_x;
+			max_y = (curr_y > max_y) ? curr_y : max_y;
 
-	// 		min_x = (curr_x < min_x) ? curr_x : min_x;
-	// 		min_y = (curr_y < min_y) ? curr_y : min_y;
-	// 	}
-	// }
+			min_x = (curr_x < min_x) ? curr_x : min_x;
+			min_y = (curr_y < min_y) ? curr_y : min_y;
+		}
+	}
 
-	// cout << "Possible coordinates of match: [" << min_x << "," << min_y << "] to ["
-	// 	 << max_x << "," << max_y << "]" << endl;
+	cout << "Possible coordinates of match: [" << min_x << "," << min_y << "] to ["
+		 << max_x << "," << max_y << "]" << endl;
 
-	// result.x = min_x;
-	// result.y = min_y;
-	// result.height = max_y - min_y;
-	// result.width= max_x - min_x;
+	result.x = min_x;
+	result.y = min_y;
+	result.height = max_y - min_y;
+	result.width= max_x - min_x;
 
-	// cout << "Image width: " << min_x + max_y << "\nImage height: " << min_y + max_y << endl;
+	cout << "Image width: " << min_x + max_y << "\nImage height: " << min_y + max_y << endl;
 
-	// Mat img_matches;
+	Mat img_matches;
 
-	// for(int k = 0; k < good.size(); k++) {
-	// 	circle(canvas, scenePoints[good[k].queryIdx].pt, 10, Scalar::all(255), 1, 8, 0);
-	// }
+	for(int k = 0; k < good.size(); k++) {
+		circle(canvas, scenePoints[good[k].queryIdx].pt, 10, Scalar::all(255), 1, 8, 0);
+	}
 
 	// namedWindow("Matches", CV_WINDOW_AUTOSIZE);
 	// imshow("Matches", canvas);

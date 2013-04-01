@@ -26,6 +26,7 @@ using namespace cv;
 #include <fstream>
 using namespace std;
 
+#include <math.h> 
 #include "defines.h"
 
 int main(int argc, char *argv[]) {
@@ -49,13 +50,18 @@ int main(int argc, char *argv[]) {
 	 * subimageDim is the width and height that the selection will be resized to
 	 */
 	Mat subimage, searchMat;
-
+	
+	/*
+	 * Location of the searchMat in the image
+	 */
 	Rect searchRect;
 
 	/*
 	 * Simulate video stream
 	 */
 	while(running) {
+		// usleep(500000);
+
 		cam >> img;
 		backup = img.clone();
 
@@ -101,19 +107,13 @@ int main(int argc, char *argv[]) {
 			finished = false;
 			/*
 			 * First verify that the selection is large enough or the program will crash
+			 * defines.h defines MIN_SIZE
 			 */
-			if(selection.width < 10 || selection.height < 10)
+			if(selection.width < MIN_SIZE || selection.height < MIN_SIZE)
 				continue;
 
 			selection.x = (selection.x < 0) ? 0 : selection.x;
 			selection.y = (selection.y < 0) ? 0 : selection.y;
-
-			if(selection.x + selection.width > img.cols) {
-				selection.width = img.cols - selection.x - 1;
-			}
-			if(selection.y + selection.height > img.rows) {
-				selection.height = img.rows - selection.y - 1;
-			}
 
 			subimage = img(selection);
 		
@@ -121,32 +121,31 @@ int main(int argc, char *argv[]) {
 			// Try to find subimage in backup, and store the result in result
 			findSelection(backup, subimage, result);
 
-			if(result.width > 20 && 
-			   result.height > 20 && 
+			/*
+			 * If findSelection finds a match smaller than MIN_SIZE, ignore it
+			 */
+			if(result.width > MIN_SIZE && 
+			   result.height > MIN_SIZE && 
 			   result.width < img.cols && 
 			   result.height < img.rows) {
 
 				searchMat = img(result);
-				// searchMat = subimage;
-			
-				cout << "draw result" << endl;
 				searchRect = result;
-				Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);
-				rectangle(img, result, color, 1, 8, 0);
-			}
-			else {
-				searchRect.x = 0;
-				searchRect.y = 0;
 			}
 		}
 
+		/*
+		 * The image may change since the last selection was found,
+		 * use the new image to catch cases where the object may be rotating
+		 * or otherwise changing orientation.
+		 */
 		if(searchMat.rows > 20 && searchMat.cols > 20) {
 			findSelection(backup, searchMat, searchRect);
 		}
-		else {
-			searchMat = Mat();
-		}
 
+		/*
+		 * Draw the rectangle selection (the object found by findSelection)
+		 */
 		if(searchRect.x && searchRect.y && searchRect.width && searchRect.height) {
 			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);
 			rectangle(img, searchRect, color, 1, 8, 0);
@@ -203,6 +202,9 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
+/*
+ * Called when a mouse event occurs.
+ */
 void mouseCallback(int event, int x, int y, int flags, void* param) {
 	Mat* current_image = (Mat*) param;
 
@@ -274,17 +276,21 @@ void maximizeContrast(Mat &input, Mat &output) {
  * noise reduction and contrast maximization.
  */
 void findSelection(Mat &image, Mat &subimage, Rect &result) {
-	cout << "subimage: " << subimage.rows << "," << subimage.cols << endl;
-
-	SurfFeatureDetector surf(400);
+	/*
+	 * surf is defined in defines.h
+	 */
 	vector<KeyPoint> scenePoints, objectPoints;
 	surf.detect(image, scenePoints);
 	surf.detect(subimage, objectPoints);
 
 	/*
 	 * Calculate descriptors
+	 *
+	 * this is the slowest part
+	 * find a way to speed it up
+	 *
+	 * extractor is defined in defines.h
 	 */
-	SurfDescriptorExtractor extractor;
 	Mat sceneDesc, objectDesc;
 	extractor.compute(image, scenePoints, sceneDesc);
 	extractor.compute(subimage, objectPoints, objectDesc);
@@ -300,7 +306,10 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	else
 		return;
 
-	double max_dist = 0, min_dist = 100;
+	/*
+	 * Defines the largest distance between matching points.
+	 */
+	double max_dist = 0, min_dist = 50;
 
 	for(int i = 0; i < sceneDesc.rows; i++) {
 		double dist = matches[i].distance;
@@ -327,9 +336,15 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	float max_x = 0, max_y = 0;
 	float min_x = image.cols, min_y = image.rows;
 
+	/*
+	 * No good matches, nothing to do.
+	 */
 	if(!good.size())
 		return;
 
+	/*
+	 * Find the outer points of the selection.
+	 */
 	for(int i = 0; i < good.size(); i++) {
 		curr_x = scenePoints[good[i].queryIdx].pt.x;
 		curr_y = scenePoints[good[i].queryIdx].pt.y;
@@ -351,24 +366,16 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	 * Width is the "average" of the selection, 
 	 * ((width - x) / 2) + ((height - y) / 2)) / 2
 	 */
-	// float width = 40;
-	// float mid_x = ((min_x + max_x) / 2) - width;
-	// float mid_y = ((min_y + max_y) / 2) - width;
-
-	// cout << "dimensions: [" << mid_x << "," << mid_y << "] x [" << mid_x + (width * 2) << ","
-	// 		<< mid_y + (width * 2) << "]" << endl;
-
-	// cout << min_x << " " << min_y << " " << max_x << " " << max_y << " size: " << good.size() << endl;
-
-	result.x = min_x - 10;
-	result.y = min_y - 10;
-	result.width = 30;
-	result.height= 30;
+	float width = 40;
+	float mid_x = ((min_x + max_x) / 2);
+	float mid_y = ((min_y + max_y) / 2);
 
 	/*
-	 * Draw circles
+	 * Dimensions of the object that was found.
 	 */
-	// for(int k = 0; k < good.size(); k++) {
-	// 	circle(canvas, scenePoints[good[k].queryIdx].pt, 10, Scalar::all(255), 1, 8, 0);
-	// }
+	result.x = mid_x - 20;
+	result.y = mid_y - 20;
+	result.width = width;
+	result.height= width;
+
 }

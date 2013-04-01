@@ -75,5 +75,12 @@ const char *helpArray[] = {"q   -- quit.",
  * Length of help_array
  */
 #define HELP_LENGTH 5
+#define MIN_SIZE 10
+
+/*
+ * Define these once
+ */
+SurfDescriptorExtractor extractor;
+SurfFeatureDetector surf(400);
 
 #endif

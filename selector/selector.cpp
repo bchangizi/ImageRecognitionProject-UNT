@@ -49,7 +49,8 @@ int main(int argc, char *argv[]) {
 	 * subimageDim is the width and height that the selection will be resized to
 	 */
 	Mat subimage, searchMat;
-	int subimageDim = 80;
+
+	Rect searchRect;
 
 	/*
 	 * Simulate video stream
@@ -114,37 +115,41 @@ int main(int argc, char *argv[]) {
 				selection.height = img.rows - selection.y - 1;
 			}
 
-			/*
-			 * Copy the subimage out,
-			 * resize it to 80x80,
-			 * show it in the bottom right of the video capture.
-			 */
 			subimage = img(selection);
-			resize(subimage, subimage, Size(subimageDim, subimageDim));
 		
 			Rect result;
 			// Try to find subimage in backup, and store the result in result
 			findSelection(backup, subimage, result);
 
-			if((result.width > 20 && result.height > 20) && 
-			   (result.width != img.cols && result.height != img.rows)) {
+			if(result.width > 20 && 
+			   result.height > 20 && 
+			   result.width < img.cols && 
+			   result.height < img.rows) {
+
 				searchMat = img(result);
+				// searchMat = subimage;
+			
+				cout << "draw result" << endl;
+				searchRect = result;
+				Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);
+				rectangle(img, result, color, 1, 8, 0);
+			}
+			else {
+				searchRect.x = 0;
+				searchRect.y = 0;
 			}
 		}
 
 		if(searchMat.rows > 20 && searchMat.cols > 20) {
-			Rect result;
-			findSelection(backup, subimage, result);
-
-			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);
-			Vec3b dragStart = img.at<Vec3b>(result.x, result.y);
-			rectangle(img, result, color, 1, 8, 0);
+			findSelection(backup, searchMat, searchRect);
+		}
+		else {
+			searchMat = Mat();
 		}
 
-		// show the image in a window
-		if(subimage.rows > 10 && subimage.cols > 10) {
-			Rect result(Point(img.cols - subimageDim, img.rows - subimageDim), subimage.size());
-			subimage.copyTo(img(result));
+		if(searchRect.x && searchRect.y && searchRect.width && searchRect.height) {
+			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);
+			rectangle(img, searchRect, color, 1, 8, 0);
 		}
 
 		imshow("Stream", img);
@@ -269,20 +274,12 @@ void maximizeContrast(Mat &input, Mat &output) {
  * noise reduction and contrast maximization.
  */
 void findSelection(Mat &image, Mat &subimage, Rect &result) {
-	/*
-	 * scene - the main image (video feed)
-	 * object - the selection (subimage of the scene)
-	 * canvas - visualization of the matching points
-	 */
-	// Mat scene, object, canvas;
+	cout << "subimage: " << subimage.rows << "," << subimage.cols << endl;
 
 	SurfFeatureDetector surf(400);
 	vector<KeyPoint> scenePoints, objectPoints;
 	surf.detect(image, scenePoints);
 	surf.detect(subimage, objectPoints);
-
-	// cout << scenePoints.size() << " keypoints in scene.\n" 
-	// 	<< objectPoints.size() << " keypoints in object." << endl;
 
 	/*
 	 * Calculate descriptors
@@ -297,7 +294,11 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	 */
 	FlannBasedMatcher matcher;
 	vector<DMatch> matches;
-	matcher.match(sceneDesc, objectDesc, matches);
+	if(sceneDesc.rows > 0 && sceneDesc.cols > 0 &&
+	   objectDesc.rows > 0 && objectDesc.cols > 0) 
+		matcher.match(sceneDesc, objectDesc, matches);
+	else
+		return;
 
 	double max_dist = 0, min_dist = 100;
 
@@ -308,8 +309,6 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 		if(dist> max_dist)
 			max_dist = dist;
 	}
-	
-	// cout << "Found " << matches.size() << " matches." << endl;
 
 	/*
 	 * Find the matches that are less than 5 * min_dist apart
@@ -321,8 +320,6 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 		}
 	}
 
-	// cout << "Found " << good.size() << " good matches." << endl;
-
 	/*
 	 * Put the good matches into the scene and object vectors
 	 */
@@ -330,32 +327,43 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	float max_x = 0, max_y = 0;
 	float min_x = image.cols, min_y = image.rows;
 
+	if(!good.size())
+		return;
+
 	for(int i = 0; i < good.size(); i++) {
 		curr_x = scenePoints[good[i].queryIdx].pt.x;
 		curr_y = scenePoints[good[i].queryIdx].pt.y;
 		if(curr_x * curr_y != 0) {
-			max_x = (curr_x > max_x) ? curr_x : max_x;
-			max_y = (curr_y > max_y) ? curr_y : max_y;
+			if(curr_x > max_x)
+				max_x = curr_x;
+			if(curr_y > max_y)
+				max_y = curr_y;
 
-			min_x = (curr_x < min_x) ? curr_x : min_x;
-			min_y = (curr_y < min_y) ? curr_y : min_y;
+			if(curr_x < min_x)
+				min_x = curr_x;
+			if(curr_y < min_y)
+				min_y = curr_y;
 		}
 	}
 
-	// cout << "Possible coordinates of match: [" << min_x << "," << min_y << "] to ["
-	// 	 << max_x << "," << max_y << "]" << endl;
-
 	/*
 	 * Calculate the "middle" of the cluster of points
+	 * Width is the "average" of the selection, 
+	 * ((width - x) / 2) + ((height - y) / 2)) / 2
 	 */
-	result.x = min_x + (min_x / 2);
-	result.y = min_y + (min_y / 2);
-	result.height = (max_y - min_y) / 4;
-	result.width = (max_x - min_x) / 4;
+	// float width = 40;
+	// float mid_x = ((min_x + max_x) / 2) - width;
+	// float mid_y = ((min_y + max_y) / 2) - width;
 
-	// cout << "Image width: " << min_x + max_y << "\nImage height: " << min_y + max_y << endl;
+	// cout << "dimensions: [" << mid_x << "," << mid_y << "] x [" << mid_x + (width * 2) << ","
+	// 		<< mid_y + (width * 2) << "]" << endl;
 
-	Mat img_matches;
+	// cout << min_x << " " << min_y << " " << max_x << " " << max_y << " size: " << good.size() << endl;
+
+	result.x = min_x - 10;
+	result.y = min_y - 10;
+	result.width = 30;
+	result.height= 30;
 
 	/*
 	 * Draw circles

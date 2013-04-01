@@ -60,7 +60,7 @@ void maximizeContrast(Mat &input, Mat &output);
  * Given an image and a subimage, find the subimage
  * and highlight it, and store the result
  */
-void findSelection(Mat& source, Mat& subimage, Rect& result);
+void findSelection(Mat&, Mat&, Rect& result);
 
 /*
  * Ridiculous hack to put text on newlines...

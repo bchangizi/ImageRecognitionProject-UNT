@@ -24,7 +24,7 @@ using namespace cv;
 
 #include <iostream>
 #include <fstream>
-#include <queue>
+#include <deque>
 using namespace std;
 
 #include <math.h> 
@@ -57,24 +57,24 @@ int main(int argc, char *argv[]) {
 	 */
 	Rect searchRect;
 
-	queue<Mat> pool;
+	deque<Mat> pool;
 
 	int numFound = 0;
 
 	/*
 	 * Put the first ~3 seconds of video into a queue
 	 */
-	for(int k = 0; k < 90; k++) {
-		cam >> img;
-		pool.push(img);
-	}
+// 	for(int k = 0; k < 90; k++) {
+// 		cam >> img;
+// 		pool.push(img);
+// 	}
 
 	/*
 	 * Simulate video stream
 	 */
 	while(running) {
 		cam >> img;
-		pool.push(img);
+		pool.push_back(img);
 
 		backup = img.clone();
 
@@ -172,13 +172,16 @@ int main(int argc, char *argv[]) {
 			rectangle(img, searchRect, color, 1, 8, 0);
 		}
 
-		imshow("Stream", pool.front());
-		pool.pop();
+		if( pool.size() >= 5 ) {
+			imshow("Stream", pool.front());
+			pool.clear();			
+		}
+		
 
 		/* 
 		 * wait 10 milliseconds for keyboard input
 		 */
-		int keyCode = cvWaitKey(10);
+		int keyCode = cvWaitKey(1);
 
 		switch(keyCode) {
 			/*

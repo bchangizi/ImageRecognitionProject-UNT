@@ -74,7 +74,8 @@ int main(int argc, char *argv[]) {
 	 */
 	while(running) {
 		cam >> img;
-		pool.push_back(img);
+		//Make a copy of the image.
+		pool.push_back( img.clone() );
 
 		backup = img.clone();
 
@@ -170,18 +171,19 @@ int main(int argc, char *argv[]) {
 		if(searchRect.x && searchRect.y && searchRect.width && searchRect.height) {
 			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);
 			rectangle(img, searchRect, color, 1, 8, 0);
-		}
-
-		if( pool.size() >= 5 ) {
-			imshow("Stream", pool.front());
-			pool.clear();			
-		}
+		}		
 		
 
 		/* 
 		 * wait 10 milliseconds for keyboard input
 		 */
-		int keyCode = cvWaitKey(1);
+		int keyCode = waitKey(10);
+		
+		if( pool.size() >= 60 ) {
+			imshow("Stream", pool.front());
+			pool.front().release();
+			pool.pop_front();
+		}
 
 		switch(keyCode) {
 			/*

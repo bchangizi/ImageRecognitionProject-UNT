@@ -24,6 +24,7 @@ using namespace cv;
 
 #include <iostream>
 #include <fstream>
+#include <queue>
 using namespace std;
 
 #include <math.h> 
@@ -56,13 +57,25 @@ int main(int argc, char *argv[]) {
 	 */
 	Rect searchRect;
 
+	queue<Mat> pool;
+
+	int numFound = 0;
+
+	/*
+	 * Put the first ~3 seconds of video into a queue
+	 */
+	for(int k = 0; k < 90; k++) {
+		cam >> img;
+		pool.push(img);
+	}
+
 	/*
 	 * Simulate video stream
 	 */
 	while(running) {
-		// usleep(500000);
-
 		cam >> img;
+		pool.push(img);
+
 		backup = img.clone();
 
 		if(reduceNoise) {
@@ -140,7 +153,15 @@ int main(int argc, char *argv[]) {
 		 * or otherwise changing orientation.
 		 */
 		if(searchMat.rows > 20 && searchMat.cols > 20) {
+			Rect tempRect = searchRect;
 			findSelection(backup, searchMat, searchRect);
+			if(tempRect == searchRect && numFound >= 20) {
+				searchMat = Mat();
+				searchRect = Rect();
+				numFound = 0;
+			}
+			else
+				numFound++;
 		}
 
 		/*
@@ -151,7 +172,8 @@ int main(int argc, char *argv[]) {
 			rectangle(img, searchRect, color, 1, 8, 0);
 		}
 
-		imshow("Stream", img);
+		imshow("Stream", pool.front());
+		pool.pop();
 
 		/* 
 		 * wait 10 milliseconds for keyboard input

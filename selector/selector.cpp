@@ -235,8 +235,8 @@ void mouseCallback(int event, int x, int y, int flags, void* param) {
 			 * selection box will change
 			 */
 			if(dragging) {
-				selection.width = x - selection.x;
-				selection.height = y - selection.y;
+				selection.width = ( x > current_image->cols ? current_image->cols : x ) - selection.x;
+				selection.height = ( y > current_image->rows ? current_image->rows : y )- selection.y;
 			}
 			break;
 		}

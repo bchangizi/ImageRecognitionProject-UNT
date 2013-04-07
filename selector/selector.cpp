@@ -62,22 +62,9 @@ int main(int argc, char *argv[]) {
 	int numFound = 0;
 
 	/*
-	 * Put the first ~3 seconds of video into a queue
-	 */
-// 	for(int k = 0; k < 90; k++) {
-// 		cam >> img;
-// 		pool.push(img);
-// 	}
-
-	/*
 	 * Simulate video stream
 	 */
 	while(running) {
-		cam >> img;
-		//Make a copy of the image.
-		pool.push_back( img.clone() );
-
-		backup = img.clone();
 
 		if(reduceNoise) {
 			medianBlur(img, img, 3);
@@ -114,8 +101,8 @@ int main(int argc, char *argv[]) {
 			 * Draw the rectangle
 			 */
 			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);
-			Vec3b dragStart = img.at<Vec3b>(selection.x, selection.y);
-			rectangle(img, selection, color, 1, 8, 0);
+			Vec3b dragStart = pool.front().at<Vec3b>(selection.x, selection.y);
+			rectangle(pool.front(), selection, color, 1, 8, 0);
 		}
 		else if(finished) {
 			finished = false;
@@ -170,10 +157,15 @@ int main(int argc, char *argv[]) {
 		 */
 		if(searchRect.x && searchRect.y && searchRect.width && searchRect.height) {
 			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);
-			rectangle(img, searchRect, color, 1, 8, 0);
+			rectangle(pool.front(), searchRect, color, 1, 8, 0);
 		}		
-		
 
+		cam >> img;
+		//Make a copy of the image.
+		pool.push_back( img.clone() );
+
+		backup = img.clone();
+		
 		/* 
 		 * wait 10 milliseconds for keyboard input
 		 */

@@ -8,7 +8,7 @@ include_directories( $ENV{OPENCV}/include )
 link_directories(  $ENV{OPENCV}/lib )
 
 IF(WIN32)
-	SET(external_libs opencv_core243d.lib opencv_highgui243d.dll opencv_video243d.dll opencv_ml243d.dll opencv_legacy243d.dll opencv_imgproc243d.dll)
+	SET(external_libs opencv_core243d.lib opencv_highgui243d.lib opencv_video243d.lib opencv_ml243d.lib opencv_legacy243d.lib opencv_imgproc243d.lib opencv_features2d243d.lib opencv_nonfree243d.lib opencv_calib3d243d.lib opencv_objdetect243d.lib opencv_flann243d.lib)
 ENDIF(WIN32)
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
@@ -16,6 +16,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
 	set(CMAKE_BUILD_TYPE Debug)
 ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 
+source_group( "Headers" defines.h )
 #Define sources used to compile our project
-add_executable(ImageSelect selector.cpp)
+add_executable(ImageSelect selector.cpp defines.h)
 target_link_libraries(ImageSelect ${external_libs} )

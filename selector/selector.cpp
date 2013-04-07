@@ -73,9 +73,7 @@ int main(int argc, char *argv[]) {
 	 * Simulate video stream
 	 */
 	while(running) {
-		cam >> img;
-		//Make a copy of the image.
-		pool.push_back( img.clone() );
+		cam >> img;		
 
 		backup = img.clone();
 
@@ -173,7 +171,8 @@ int main(int argc, char *argv[]) {
 			rectangle(img, searchRect, color, 1, 8, 0);
 		}		
 		
-
+		//Make a copy of the image.
+		pool.push_back( img.clone() );
 		/* 
 		 * wait 10 milliseconds for keyboard input
 		 */

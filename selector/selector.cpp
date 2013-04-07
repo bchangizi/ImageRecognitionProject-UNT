@@ -20,6 +20,7 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/nonfree/features2d.hpp>
 #include <opencv2/legacy/legacy.hpp>
+#include "qthread.h"
 using namespace cv;
 
 #include <iostream>
@@ -33,6 +34,7 @@ using namespace std;
 int main(int argc, char *argv[]) {
 
 	Mat img, backup;
+	// Qt installation test code - QThread * thread = new QThread();
 	
 	VideoCapture cam(0);
 	if(!cam.isOpened()) {

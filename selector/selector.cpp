@@ -27,6 +27,8 @@ using namespace cv;
 #include <deque>
 using namespace std;
 
+#include <QThread>
+
 #include <math.h> 
 #include "defines.h"
 
@@ -59,7 +61,7 @@ int main(int argc, char *argv[]) {
 
 	deque<Mat> pool;
 
-	int numFound = 0;
+	int numFound = 0, imgCount = 0;
 
 	/*
 	 * Simulate video stream
@@ -117,7 +119,7 @@ int main(int argc, char *argv[]) {
 			selection.y = (selection.y < 0) ? 0 : selection.y;
 
 			subimage = img(selection);
-		
+
 			Rect result;
 			// Try to find subimage in backup, and store the result in result
 			findSelection(backup, subimage, result);
@@ -140,16 +142,18 @@ int main(int argc, char *argv[]) {
 		 * use the new image to catch cases where the object may be rotating
 		 * or otherwise changing orientation.
 		 */
-		if(searchMat.rows > 20 && searchMat.cols > 20) {
+		if(searchMat.rows > 20 && searchMat.cols > 20 ) {
 			Rect tempRect = searchRect;
 			findSelection(backup, searchMat, searchRect);
-			if(tempRect == searchRect && numFound >= 20) {
+			if(tempRect == searchRect && numFound >= 30) {
 				searchMat = Mat();
 				searchRect = Rect();
 				numFound = 0;
 			}
-			else
+			else {
+				cout << "found " << numFound + 1 << " matches." << endl;
 				numFound++;
+			}
 		}
 
 		/*
@@ -163,8 +167,8 @@ int main(int argc, char *argv[]) {
 		cam >> img;
 		//Make a copy of the image.
 		pool.push_back( img.clone() );
-
 		backup = img.clone();
+		imgCount++;
 		
 		/* 
 		 * wait 10 milliseconds for keyboard input
@@ -385,7 +389,8 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	 * Width is the "average" of the selection, 
 	 * ((width - x) / 2) + ((height - y) / 2)) / 2
 	 */
-	float width = 40;
+	float width = 40; 
+	float height = 40;
 	float mid_x = ((min_x + max_x) / 2);
 	float mid_y = ((min_y + max_y) / 2);
 
@@ -395,6 +400,10 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	result.x = mid_x - 20;
 	result.y = mid_y - 20;
 	result.width = width;
-	result.height= width;
+	result.height= height;
 
+	// result.x = min_x;
+	// result.y = min_y;
+	// result.width = max_x - min_x;
+	// result.height = max_y - min_y;
 }

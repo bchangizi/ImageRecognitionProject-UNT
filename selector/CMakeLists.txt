@@ -17,7 +17,8 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
 	set(CMAKE_BUILD_TYPE Debug)
 ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 
-source_group( "Headers" defines.h )
+FILE(GLOB source_files ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
+source_group( "Headers" FILES )
 #Define sources used to compile our project
-add_executable(ImageSelect selector.cpp defines.h)
+add_executable(ImageSelect selector.cpp )
 target_link_libraries(ImageSelect ${external_libs} )

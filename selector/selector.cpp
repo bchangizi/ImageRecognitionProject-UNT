@@ -64,6 +64,18 @@ int main(int argc, char *argv[]) {
 	int numFound = 0, imgCount = 0;
 
 	/*
+	 * Output video
+	 */
+	VideoWriter output;
+	output.open("video.avi", CV_FOURCC('M','J','P','G'), 20,
+				Size(640, 480), true);
+
+	if(!output.isOpened()) {
+		cout << "Failed to open video writer." << endl;
+		return 1;
+	}
+		
+	/*
 	 * Simulate video stream
 	 */
 	while(running) {
@@ -142,10 +154,11 @@ int main(int argc, char *argv[]) {
 		 * use the new image to catch cases where the object may be rotating
 		 * or otherwise changing orientation.
 		 */
-		if(searchMat.rows > 20 && searchMat.cols > 20 ) {
+		if(searchMat.rows > 20 && searchMat.cols > 20) {
 			Rect tempRect = searchRect;
 			findSelection(backup, searchMat, searchRect);
-			if(tempRect == searchRect && numFound >= 30) {
+			if(tempRect == searchRect) {
+			// if(tempRect == searchRect && numFound >= 30) {
 				searchMat = Mat();
 				searchRect = Rect();
 				numFound = 0;
@@ -176,7 +189,9 @@ int main(int argc, char *argv[]) {
 		int keyCode = waitKey(10);
 		
 		if( pool.size() >= 60 ) {
+			
 			imshow("Stream", pool.front());
+			output.write(pool.front());
 			pool.front().release();
 			pool.pop_front();
 		}

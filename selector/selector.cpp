@@ -20,6 +20,7 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/nonfree/features2d.hpp>
 #include <opencv2/legacy/legacy.hpp>
+#include "qthread.h"
 using namespace cv;
 
 #include <iostream>
@@ -35,6 +36,7 @@ using namespace std;
 int main(int argc, char *argv[]) {
 
 	Mat img, backup;
+	// Qt installation test code - QThread * thread = new QThread();
 	
 	VideoCapture cam(0);
 	if(!cam.isOpened()) {
@@ -254,8 +256,8 @@ void mouseCallback(int event, int x, int y, int flags, void* param) {
 			 * selection box will change
 			 */
 			if(dragging) {
-				selection.width = x - selection.x;
-				selection.height = y - selection.y;
+				selection.width = ( x > current_image->cols ? current_image->cols : x ) - selection.x;
+				selection.height = ( y > current_image->rows ? current_image->rows : y )- selection.y;
 			}
 			break;
 		}

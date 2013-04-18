@@ -116,8 +116,7 @@ int main(int argc, char *argv[]) {
 			/*
 			 * Draw the rectangle
 			 */
-			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);
-			Vec3b dragStart = pool.front().at<Vec3b>(selection.x, selection.y);
+			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);		
 			rectangle(pool.front(), selection, color, 1, 8, 0);
 		}
 		else if(finished) {
@@ -265,6 +264,7 @@ void mouseCallback(int event, int x, int y, int flags, void* param) {
 			/* 
 			 * left mouse button means start coordinates are selected
 			 */
+			if( x > current_image->cols || y > current_image->rows ) break;
 			dragging = true;
 			selection = cvRect(x, y, 0, 0);
 			break;

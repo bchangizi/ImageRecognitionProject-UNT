@@ -81,6 +81,6 @@ const char *helpArray[] = {"q   -- quit.",
  * Define these once
  */
 SurfDescriptorExtractor extractor;
-SurfFeatureDetector surf(200);
+SurfFeatureDetector surf(400);
 
 #endif

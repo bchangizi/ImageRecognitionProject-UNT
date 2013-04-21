@@ -28,19 +28,26 @@ using namespace cv;
 #include <deque>
 using namespace std;
 
-#include <QThread>
-
 #include <math.h> 
 #include "defines.h"
 
 int main(int argc, char *argv[]) {
 
 	Mat img, backup;
-	// Qt installation test code - QThread * thread = new QThread();
+	bool usingFile = false;
 	
-	VideoCapture cam(0);
+	VideoCapture cam;
+	if(argc == 2) {
+		usingFile = true;
+		cam = VideoCapture(argv[1]);
+	}
+	else {
+		cam = VideoCapture(0);
+	}
+
+
 	if(!cam.isOpened()) {
-		cout << "Failed to open default camera." << endl;
+		cout << "Failed to open video capture." << endl;
 		return 1;
 	}
 
@@ -179,6 +186,7 @@ int main(int argc, char *argv[]) {
 		}		
 
 		cam >> img;
+		if(img.empty()) break;
 		//Make a copy of the image.
 		pool.push_back( img.clone() );
 		backup = img.clone();
@@ -188,9 +196,17 @@ int main(int argc, char *argv[]) {
 		 * wait 10 milliseconds for keyboard input
 		 */
 		int keyCode = waitKey(10);
-		
-		if( pool.size() >= 60 ) {
-			
+	
+		/*
+		 * If we are reading from a webcam, use pool size of 60, 
+		 * otherwise read from the file normally.
+		 *
+		 * this prevents the stream from skipping the last 60 frames
+		 * when using a video file
+		 *
+		 * find a better way to do this
+		 */
+		if(pool.size() >= 60 && !usingFile) {
 			imshow("Stream", pool.front());
 			output.write(pool.front());
 			pool.front().release();
@@ -320,8 +336,13 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	 * surf is defined in defines.h
 	 */
 	vector<KeyPoint> scenePoints, objectPoints;
+
+	SurfFeatureDetector surfObject(2);
+
 	surf.detect(image, scenePoints);
-	surf.detect(subimage, objectPoints);
+	surfObject.detect(subimage, objectPoints);
+
+	cout << scenePoints.size() << " keypoints in scene. " << objectPoints.size() << " keypoints in object." << endl;
 
 	/*
 	 * Calculate descriptors
@@ -349,7 +370,7 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	/*
 	 * Defines the largest distance between matching points.
 	 */
-	double max_dist = 0, min_dist = 50;
+	double max_dist = 0, min_dist = (subimage.rows + subimage.cols) / 2;
 
 	for(int i = 0; i < sceneDesc.rows; i++) {
 		double dist = matches[i].distance;
@@ -364,10 +385,12 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	 */
 	vector<DMatch> good;
 	for(int i = 0; i < sceneDesc.rows; i++) {
-		if(matches[i].distance < 5 * min_dist) {
+		if(matches[i].distance < 10 * min_dist) {
 			good.push_back(matches[i]);
 		}
 	}
+
+	cout << good.size() << " good matches." << endl;
 
 	/*
 	 * Put the good matches into the scene and object vectors
@@ -403,10 +426,8 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 
 	/*
 	 * Calculate the "middle" of the cluster of points
-	 * Width is the "average" of the selection, 
-	 * ((width - x) / 2) + ((height - y) / 2)) / 2
 	 */
-	float width = 40; 
+	float width = 40;
 	float height = 40;
 	float mid_x = ((min_x + max_x) / 2);
 	float mid_y = ((min_y + max_y) / 2);
@@ -414,13 +435,8 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	/*
 	 * Dimensions of the object that was found.
 	 */
-	result.x = mid_x - 20;
-	result.y = mid_y - 20;
+	result.x = mid_x - (width / 2);
+	result.y = mid_y - (height / 2);
 	result.width = width;
 	result.height= height;
-
-	// result.x = min_x;
-	// result.y = min_y;
-	// result.width = max_x - min_x;
-	// result.height = max_y - min_y;
 }

@@ -3,6 +3,7 @@
 *.swp
 *.gz
 *.bz2
+*.avi
 selector/CMakeCache.txt
 selector/ImageSelect
 selector/CMakeFiles

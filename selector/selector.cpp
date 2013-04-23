@@ -20,7 +20,6 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/nonfree/features2d.hpp>
 #include <opencv2/legacy/legacy.hpp>
-#include "qthread.h"
 using namespace cv;
 
 #include <iostream>
@@ -28,18 +27,24 @@ using namespace cv;
 #include <deque>
 using namespace std;
 
-#include <math.h> 
+#include <ctime>
+#include <string>
+#include <stdlib.h>
+#include <math.h>
 #include "defines.h"
 
 int main(int argc, char *argv[]) {
 
 	Mat img, backup;
 	bool usingFile = false;
+	//Take an output file name from starting args
+	string outputVidFile;
 	
 	VideoCapture cam;
-	if(argc == 2) {
+	if(argc == 3) {
 		usingFile = true;
 		cam = VideoCapture(argv[1]);
+		outputVidFile = argv[2];
 	}
 	else {
 		cam = VideoCapture(0);
@@ -76,7 +81,14 @@ int main(int argc, char *argv[]) {
 	 * Output video
 	 */
 	VideoWriter output;
-	output.open("video.avi", CV_FOURCC('M','J','P','G'), 20,
+	outputVidFile = (outputVidFile.length() )? outputVidFile : "video.avi";
+	if( outputVidFile == argv[1] ) {
+		char preventConflict[55] = {0};
+		sprintf( preventConflict, "video_%u.avi", (unsigned int)(time(NULL) ) );
+		outputVidFile = preventConflict;
+	}
+
+	output.open( outputVidFile, CV_FOURCC('M','J','P','G'), 20,
 				Size(640, 480), true);
 
 	if(!output.isOpened()) {
@@ -397,7 +409,7 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	 */
 	float curr_x, curr_y;
 	float max_x = 0, max_y = 0;
-	float min_x = image.cols, min_y = image.rows;
+	float min_x = (float)image.cols, min_y = (float)image.rows;
 
 	/*
 	 * No good matches, nothing to do.
@@ -408,7 +420,7 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	/*
 	 * Find the outer points of the selection.
 	 */
-	for(int i = 0; i < good.size(); i++) {
+	for(size_t i = 0; i < good.size(); i++) {
 		curr_x = scenePoints[good[i].queryIdx].pt.x;
 		curr_y = scenePoints[good[i].queryIdx].pt.y;
 		if(curr_x * curr_y != 0) {
@@ -435,8 +447,8 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	/*
 	 * Dimensions of the object that was found.
 	 */
-	result.x = mid_x - (width / 2);
-	result.y = mid_y - (height / 2);
-	result.width = width;
-	result.height= height;
+	result.x = (int)( mid_x - (width / 2) );
+	result.y = (int)( mid_y - (height / 2) );
+	result.width = (int)width;
+	result.height= (int)height;
 }

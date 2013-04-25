@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
 	 */
 	VideoWriter output;
 	//output.open() fails if that file already exists so we need to know it advance and rename the output.
-	if( ifstream( outputVidFile ) ) {
+	if( ifstream( outputVidFile.c_str(), ios::out ) ) {
 		char preventConflict[55] = {0};
 		sprintf( preventConflict, "video_%u.avi", (unsigned int)(time(NULL) ) );
 		outputVidFile = preventConflict;
@@ -394,10 +394,10 @@ bool findSelection(Mat &image) {
 	//cout << "After perspectiveTransform" << endl;
 	
 	//Draw our rectangle around our possible found object
-	line( sceneWithMatches, scene_corners[0] , scene_corners[1] , Scalar(0, 0, 255), 4 );
-	line( sceneWithMatches, scene_corners[1] , scene_corners[2] , Scalar(0, 0, 255), 4 );
-	line( sceneWithMatches, scene_corners[2] , scene_corners[3] , Scalar(0, 0, 255), 4 );
-	line( sceneWithMatches, scene_corners[3] , scene_corners[0] , Scalar(0, 0, 255), 4 );
+	line( sceneWithMatches, scene_corners[0] , scene_corners[1] , Scalar(0, 255, 0), 1 );
+	line( sceneWithMatches, scene_corners[1] , scene_corners[2] , Scalar(0, 255, 0), 1 );
+	line( sceneWithMatches, scene_corners[2] , scene_corners[3] , Scalar(0, 255, 0), 1 );
+	line( sceneWithMatches, scene_corners[3] , scene_corners[0] , Scalar(0, 255, 0), 1 );
 
 
 	//Modify input image w/ one that has rectangle

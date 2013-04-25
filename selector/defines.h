@@ -42,9 +42,24 @@ bool reduceNoise = false;
 bool maxContrast = false;
 
 /*
- * Contains coordinates for the selected image.
+ * Contains coordinates for the selected image - not used
  */
 Rect selection;
+
+/* Object that was selected by the user along with it's key points and descriptors calculated upon acquisition */
+Mat selectedImage;
+Mat selectedImageDescriptors;
+vector<KeyPoint> selectedImageKeypoints;
+
+/* Current frame being processed */
+Mat currentFrame;
+
+/* We cache these just in case we come up w/ a way to determine when not to recalculate keypoints and descriptors. Maybe skipping frames, iunno */
+Mat currentFrameDescriptors;
+vector<KeyPoint> currentFrameKeypoints;
+
+//Keeps tracks of each frame, might come in handy for sequencing frames dispatched to threads for processing.
+unsigned long long frameCounter = 0;
 
 /*
  * Called when the named window gets a mouse event.
@@ -57,10 +72,9 @@ void mouseCallback(int event, int x, int y, int flags, void* param);
 void maximizeContrast(Mat &input, Mat &output);
 
 /*
- * Given an image and a subimage, find the subimage
- * and highlight it, and store the result
+ * Given an input image, we detect 'selectedObject' in that image and draw a border around it.
  */
-void findSelection(Mat&, Mat&, Rect& result);
+bool findSelection(Mat&);
 
 /*
  * Ridiculous hack to put text on newlines...
@@ -81,6 +95,10 @@ const char *helpArray[] = {"q   -- quit.",
  * Define these once
  */
 SurfDescriptorExtractor extractor;
-SurfFeatureDetector surf(400);
+SurfFeatureDetector surf(100);
+
+
+/* How many frames we skip - not used */
+unsigned const SKIP_EVERY_XFRAMES = 3;
 
 #endif

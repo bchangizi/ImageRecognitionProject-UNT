@@ -25,6 +25,7 @@ using namespace cv;
 #include <iostream>
 #include <fstream>
 #include <deque>
+#include <qthread.h>
 using namespace std;
 
 #include <ctime>
@@ -35,16 +36,25 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
 
-	Mat img, backup;
+	Mat backup;
 	bool usingFile = false;
+
 	//Take an output file name from starting args
-	string outputVidFile;
+	string outputVidFile = "video.avi";
 	
 	VideoCapture cam;
 	if(argc == 3) {
 		usingFile = true;
 		cam = VideoCapture(argv[1]);
 		outputVidFile = argv[2];
+		if( !outputVidFile.length() )
+			outputVidFile = "video.avi";
+		//output name matches input vid or an existing file with that name exists.
+		if( outputVidFile == argv[1] ) {
+			char preventConflict[55] = {0};
+			sprintf( preventConflict, "video_%u.avi", (unsigned int)(time(NULL) ) );
+			outputVidFile = preventConflict;
+		}
 	}
 	else {
 		cam = VideoCapture(0);
@@ -60,36 +70,23 @@ int main(int argc, char *argv[]) {
 	 * Create the window and add a mouse event handler
 	 */
 	namedWindow("Stream", CV_WINDOW_AUTOSIZE);
-	setMouseCallback("Stream", mouseCallback, (void*) &img);
+	setMouseCallback("Stream", mouseCallback, (void*) &currentFrame);
 
-	/*
-	 * subimage is the matrix that we search for in the current image
-	 * subimageDim is the width and height that the selection will be resized to
-	 */
-	Mat subimage, searchMat;
-	
-	/*
-	 * Location of the searchMat in the image
-	 */
-	Rect searchRect;
 
 	deque<Mat> pool;
-
-	int numFound = 0, imgCount = 0;
 
 	/*
 	 * Output video
 	 */
 	VideoWriter output;
-	outputVidFile = (outputVidFile.length() )? outputVidFile : "video.avi";
-	if( outputVidFile == argv[1] ) {
+	//output.open() fails if that file already exists so we need to know it advance and rename the output.
+	if( ifstream( outputVidFile ) ) {
 		char preventConflict[55] = {0};
 		sprintf( preventConflict, "video_%u.avi", (unsigned int)(time(NULL) ) );
 		outputVidFile = preventConflict;
 	}
-
-	output.open( outputVidFile, CV_FOURCC('M','J','P','G'), 20,
-				Size(640, 480), true);
+	//Open up an output video file
+	output.open( outputVidFile, CV_FOURCC('M','J','P','G'), 5, Size(640, 480), true);
 
 	if(!output.isOpened()) {
 		cout << "Failed to open video writer." << endl;
@@ -100,6 +97,15 @@ int main(int argc, char *argv[]) {
 	 * Simulate video stream
 	 */
 	while(running) {
+
+		cam >> currentFrame;		
+		Mat& img = currentFrame;
+		if( currentFrame.empty() )
+			continue;
+		//Track our frames
+		++frameCounter;
+
+		backup = img.clone();
 
 		if(reduceNoise) {
 			medianBlur(img, img, 3);
@@ -121,7 +127,7 @@ int main(int argc, char *argv[]) {
 			 * Edge map uses grayscale. 
 			 * Set the font color to white so the help menu is visible.
 			 */
-			Scalar color = (useEdges) ? Scalar(255, 255, 2525) : Scalar(0, 0, 255);
+			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 0, 255);
 			/*
 			 * Create newlines by drawing 30 pixels lower
 			 */
@@ -136,74 +142,16 @@ int main(int argc, char *argv[]) {
 			 * Draw the rectangle
 			 */
 			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);		
-			rectangle(pool.front(), selection, color, 1, 8, 0);
+			rectangle( img, selection, color, 1, 8, 0);
 		}
-		else if(finished) {
-			finished = false;
-			/*
-			 * First verify that the selection is large enough or the program will crash
-			 * defines.h defines MIN_SIZE
-			 */
-			if(selection.width < MIN_SIZE || selection.height < MIN_SIZE)
-				continue;
+		else if(finished ) {			
+			//cout << "Before findSelection()" << endl;
 
-			selection.x = (selection.x < 0) ? 0 : selection.x;
-			selection.y = (selection.y < 0) ? 0 : selection.y;
-
-			subimage = img(selection);
-
-			Rect result;
-			// Try to find subimage in backup, and store the result in result
-			findSelection(backup, subimage, result);
-
-			/*
-			 * If findSelection finds a match smaller than MIN_SIZE, ignore it
-			 */
-			if(result.width > MIN_SIZE && 
-			   result.height > MIN_SIZE && 
-			   result.width < img.cols && 
-			   result.height < img.rows) {
-
-				searchMat = img(result);
-				searchRect = result;
-			}
-		}
-
-		/*
-		 * The image may change since the last selection was found,
-		 * use the new image to catch cases where the object may be rotating
-		 * or otherwise changing orientation.
-		 */
-		if(searchMat.rows > 20 && searchMat.cols > 20) {
-			Rect tempRect = searchRect;
-			findSelection(backup, searchMat, searchRect);
-			if(tempRect == searchRect) {
-			// if(tempRect == searchRect && numFound >= 30) {
-				searchMat = Mat();
-				searchRect = Rect();
-				numFound = 0;
-			}
-			else {
-				cout << "found " << numFound + 1 << " matches." << endl;
-				numFound++;
-			}
-		}
-
-		/*
-		 * Draw the rectangle selection (the object found by findSelection)
-		 */
-		if(searchRect.x && searchRect.y && searchRect.width && searchRect.height) {
-			Scalar color = (useEdges) ? Scalar(255, 255, 255) : Scalar(0, 255, 0);
-			rectangle(pool.front(), searchRect, color, 1, 8, 0);
+			
+			//Find
+			finished = findSelection( img );
 		}		
 
-		cam >> img;
-		if(img.empty()) break;
-		//Make a copy of the image.
-		pool.push_back( img.clone() );
-		backup = img.clone();
-		imgCount++;
-		
 		/* 
 		 * wait 10 milliseconds for keyboard input
 		 */
@@ -218,12 +166,18 @@ int main(int argc, char *argv[]) {
 		 *
 		 * find a better way to do this
 		 */
-		if(pool.size() >= 60 && !usingFile) {
+		if( dragging || finished )
+			output << img;
+
+		imshow("Stream", img );		
+		img.release();		
+
+		/*if(pool.size() >= 60 && !usingFile) {
 			imshow("Stream", pool.front());
 			output.write(pool.front());
 			pool.front().release();
 			pool.pop_front();
-		}
+		} */
 
 		switch(keyCode) {
 			/*
@@ -277,14 +231,14 @@ void mouseCallback(int event, int x, int y, int flags, void* param) {
 
 	switch(event) {
 		case CV_EVENT_MOUSEMOVE: {
-			finished = false;
+			//finished = false;
 			/*
 			 * while dragging, the width and height of the 
 			 * selection box will change
 			 */
 			if(dragging) {
-				selection.width = ( x > current_image->cols ? current_image->cols : x ) - selection.x;
-				selection.height = ( y > current_image->rows ? current_image->rows : y )- selection.y;
+				selection.width = ( x > current_image->cols ) ?  current_image->cols  : x  - selection.x;
+				selection.height = ( y > current_image->rows ) ? current_image->rows : y - selection.y;
 			}
 			break;
 		}
@@ -294,10 +248,12 @@ void mouseCallback(int event, int x, int y, int flags, void* param) {
 			 */
 			if( x > current_image->cols || y > current_image->rows ) break;
 			dragging = true;
+			finished = false;
 			selection = cvRect(x, y, 0, 0);
 			break;
 		}
 		case CV_EVENT_LBUTTONUP: {
+			//cout << "MouseUp" <<endl;
 			/*
 			 * left button up means dragging is done, 
 			 * draw the selection
@@ -318,7 +274,19 @@ void mouseCallback(int event, int x, int y, int flags, void* param) {
 				selection.y += selection.height;
 				selection.height *= -1;
 			}
-
+			if(selection.width < MIN_SIZE || selection.height < MIN_SIZE) {
+				cout << "Selection isn't big enough." << endl;
+				finished = false;
+			} else {
+				selectedImage = (*current_image)(selection);
+				selectedImageKeypoints.clear();
+				surf.detect( selectedImage, selectedImageKeypoints );
+				if( selectedImageKeypoints.size() < 4) {
+					cout << "Not enough keypoints in selection. Try again!" << endl;
+					break;
+				}
+				surf.compute( selectedImage, selectedImageKeypoints, selectedImageDescriptors );
+			}
 			break;
 		}
 	}
@@ -343,48 +311,41 @@ void maximizeContrast(Mat &input, Mat &output) {
  * For best results, compute edges after
  * noise reduction and contrast maximization.
  */
-void findSelection(Mat &image, Mat &subimage, Rect &result) {
+bool findSelection(Mat &image) {
+	//cout << "findSelection intro" << endl;
 	/*
 	 * surf is defined in defines.h
 	 */
-	vector<KeyPoint> scenePoints, objectPoints;
+	if( true) { //Calculate kp and descriptors each call, might find ways around doing this every call, in the future
+		surf.detect( currentFrame, currentFrameKeypoints );
+		surf.compute( currentFrame, currentFrameKeypoints,  currentFrameDescriptors);
+	}
 
-	SurfFeatureDetector surfObject(2);
+	if( !currentFrameKeypoints.size() )
+	{
+		cout << "No key points were detected so we can't proceed!" << endl;
+		return true;
+	}
 
-	surf.detect(image, scenePoints);
-	surfObject.detect(subimage, objectPoints);
-
-	cout << scenePoints.size() << " keypoints in scene. " << objectPoints.size() << " keypoints in object." << endl;
-
-	/*
-	 * Calculate descriptors
-	 *
-	 * this is the slowest part
-	 * find a way to speed it up
-	 *
-	 * extractor is defined in defines.h
-	 */
-	Mat sceneDesc, objectDesc;
-	extractor.compute(image, scenePoints, sceneDesc);
-	extractor.compute(subimage, objectPoints, objectDesc);
+	cout << currentFrameKeypoints.size() << " keypoints in scene. " << selectedImageKeypoints.size() << " keypoints in object." << endl;
 
 	/*
 	 * Match the descriptor vectors using FLANN
 	 */
 	FlannBasedMatcher matcher;
 	vector<DMatch> matches;
-	if(sceneDesc.rows > 0 && sceneDesc.cols > 0 &&
-	   objectDesc.rows > 0 && objectDesc.cols > 0) 
-		matcher.match(sceneDesc, objectDesc, matches);
+	if( currentFrameDescriptors.rows > 0 && currentFrameDescriptors.cols > 0 &&
+	   selectedImageDescriptors.rows > 0 && selectedImageDescriptors.cols > 0) 
+	   matcher.match(selectedImageDescriptors, currentFrameDescriptors, matches);
 	else
-		return;
+		return false;
 
 	/*
 	 * Defines the largest distance between matching points.
 	 */
-	double max_dist = 0, min_dist = (subimage.rows + subimage.cols) / 2;
+	double max_dist = 0, min_dist = 100;
 
-	for(int i = 0; i < sceneDesc.rows; i++) {
+	for(int i = 0; i < matches.size(); i++) {
 		double dist = matches[i].distance;
 		if(dist < min_dist)
 			min_dist = dist;
@@ -396,59 +357,52 @@ void findSelection(Mat &image, Mat &subimage, Rect &result) {
 	 * Find the matches that are less than 5 * min_dist apart
 	 */
 	vector<DMatch> good;
-	for(int i = 0; i < sceneDesc.rows; i++) {
-		if(matches[i].distance < 10 * min_dist) {
+	for(int i = 0; i < selectedImageDescriptors.rows; i++) {
+		if(matches[i].distance < 3 * min_dist) {
 			good.push_back(matches[i]);
 		}
-	}
+	}	
 
 	cout << good.size() << " good matches." << endl;
-
-	/*
-	 * Put the good matches into the scene and object vectors
-	 */
-	float curr_x, curr_y;
-	float max_x = 0, max_y = 0;
-	float min_x = (float)image.cols, min_y = (float)image.rows;
-
 	/*
 	 * No good matches, nothing to do.
 	 */
-	if(!good.size())
-		return;
+	if( good.size() < 4 ) //findHomography needs atleast 4 good matches to work.
+		return true;
 
-	/*
-	 * Find the outer points of the selection.
-	 */
-	for(size_t i = 0; i < good.size(); i++) {
-		curr_x = scenePoints[good[i].queryIdx].pt.x;
-		curr_y = scenePoints[good[i].queryIdx].pt.y;
-		if(curr_x * curr_y != 0) {
-			if(curr_x > max_x)
-				max_x = curr_x;
-			if(curr_y > max_y)
-				max_y = curr_y;
-
-			if(curr_x < min_x)
-				min_x = curr_x;
-			if(curr_y < min_y)
-				min_y = curr_y;
-		}
+	Mat sceneWithMatches = image.clone();
+	//drawMatches( selectedImage, selectedImageKeypoints, currentFrame, currentFrameKeypoints, good, sceneWithMatches, Scalar::all(255), Scalar::all(0), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+	/* Feature detection code from opencv here about finding good matches and homography to find a 2d object in 3d space */
+	//Localize object
+	vector<Point2f> obj, scene;
+	for( int i = 0; i < good.size(); ++i) {
+		obj.push_back( selectedImageKeypoints[ good[i].queryIdx ].pt );
+		scene.push_back( currentFrameKeypoints[ good[i].trainIdx ].pt );
 	}
+	//cout << "Before homography" << endl;
+	//find perspective transform using 'findHomography'
+	Mat homographyByProduct = findHomography( obj, scene, CV_RANSAC );
 
-	/*
-	 * Calculate the "middle" of the cluster of points
-	 */
-	float width = 40;
-	float height = 40;
-	float mid_x = ((min_x + max_x) / 2);
-	float mid_y = ((min_y + max_y) / 2);
+	vector<Point2f> obj_corners(4), scene_corners(4);
+	obj_corners[0] = cvPoint(0, 0);
+	obj_corners[1] = cvPoint( selectedImage.cols, 0);
+	obj_corners[2] = cvPoint( selectedImage.cols, selectedImage.rows);
+	obj_corners[3] = cvPoint( 0, selectedImage.rows );
 
-	/*
-	 * Dimensions of the object that was found.
-	 */
-	result.x = (int)( mid_x - (width / 2) );
-	result.y = (int)( mid_y - (height / 2) );
-	result.width = (int)width;
-	result.height= (int)height;
+	//Using the coordinates above, we translate that to our scene in order to locate our object's coordinates in the scene.
+	//cout << "Before perspectiveTransform" << endl;
+	perspectiveTransform( obj_corners, scene_corners, homographyByProduct );
+	//cout << "After perspectiveTransform" << endl;
+	
+	//Draw our rectangle around our possible found object
+	line( sceneWithMatches, scene_corners[0] , scene_corners[1] , Scalar(0, 0, 255), 4 );
+	line( sceneWithMatches, scene_corners[1] , scene_corners[2] , Scalar(0, 0, 255), 4 );
+	line( sceneWithMatches, scene_corners[2] , scene_corners[3] , Scalar(0, 0, 255), 4 );
+	line( sceneWithMatches, scene_corners[3] , scene_corners[0] , Scalar(0, 0, 255), 4 );
+
+
+	//Modify input image w/ one that has rectangle
+	sceneWithMatches.copyTo(image);
+
+	return true;
 }

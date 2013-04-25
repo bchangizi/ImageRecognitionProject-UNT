@@ -50,7 +50,6 @@ int main(int argc, char *argv[]) {
 		cam = VideoCapture(0);
 	}
 
-
 	if(!cam.isOpened()) {
 		cout << "Failed to open video capture." << endl;
 		return 1;
@@ -82,14 +81,18 @@ int main(int argc, char *argv[]) {
 	 */
 	VideoWriter output;
 	outputVidFile = (outputVidFile.length() )? outputVidFile : "video.avi";
-	if( outputVidFile == argv[1] ) {
-		char preventConflict[55] = {0};
-		sprintf( preventConflict, "video_%u.avi", (unsigned int)(time(NULL) ) );
-		outputVidFile = preventConflict;
+	if(argc > 1) {
+		if( outputVidFile == argv[1] ) {
+			char preventConflict[55] = {0};
+			sprintf( preventConflict, "video_%u.avi", (unsigned int)(time(NULL) ) );
+			outputVidFile = preventConflict;
+		}
 	}
 
-	output.open( outputVidFile, CV_FOURCC('M','J','P','G'), 20,
-				Size(640, 480), true);
+	// output.open( outputVidFile, CV_FOURCC('M','J','P','G'), 20,
+				// Size(640, 480), true);
+
+	output.open("video.avi", CV_FOURCC('M','J','P','G'), 20, Size(640, 480), true);
 
 	if(!output.isOpened()) {
 		cout << "Failed to open video writer." << endl;

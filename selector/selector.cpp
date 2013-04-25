@@ -60,7 +60,6 @@ int main(int argc, char *argv[]) {
 		cam = VideoCapture(0);
 	}
 
-
 	if(!cam.isOpened()) {
 		cout << "Failed to open video capture." << endl;
 		return 1;
